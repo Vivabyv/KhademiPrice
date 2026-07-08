@@ -1,26 +1,15 @@
-# -*- coding: utf-8 -*-
-from flask import Flask
-import requests
-
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    url = "https://shiraaztala.ir/_next/data/gi1JcHYIp3c40BCz7VlES/userarea/prices.json"
+def get_live_prices():
+    url = "https://shiraaztala.ir/userarea" # به جای لینک JSON، مستقیم به صفحه قیمت‌ها بروید
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-        "Referer": "https://shiraaztala.ir/userarea"
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Referer": "https://shiraaztala.ir/"
     }
-    cookies = {"token": "4812|0owRaYcCPXWGXMeZpNTFTZheipOcNM04HuzcEkKL3f9b9622"}
+    # استفاده از Session برای نگه داشتن کوکی‌ها
+    session = requests.Session()
+    response = session.get(url, headers=headers, timeout=15)
     
-    try:
-        response = requests.get(url, headers=headers, cookies=cookies, timeout=15)
-        if response.status_code == 200:
-            return f"سایت پاسخ داد: {response.json()['pageProps']['prices']}"
-        else:
-            return f"خطای سایت: کد {response.status_code} - متن: {response.text}"
-    except Exception as e:
-        return f"خطای اتصال: {str(e)}"
-
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=10000)
+    # حالا در پاسخِ این صفحه، تمام قیمت‌ها در متنِ HTML وجود دارد
+    # می‌توانید با کتابخانه BeautifulSoup قیمت‌ها را از داخل متن بیرون بکشید
+    return "سایت پاسخ داد (حالا باید با BeautifulSoup متن را پردازش کنیم)"
