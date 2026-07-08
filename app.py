@@ -12,22 +12,22 @@ BALE_CHAT_ID = "1586282542"
 
 def generate_and_send():
     try:
-        # ۱. دریافت قیمت (ساده شده)
-        # اگر این لینک در Render کار نکرد، یعنی IP دیتاسنتر مسدود است
-        # ما اینجا از یک قیمت ثابت برای تست ارسال استفاده می‌کنیم
-        
-        # ۲. پردازش تصویر (بسیار سبک)
+        # ۱. باز کردن تصویر اصلی
         img = Image.open("سکه خادمی (34).png").convert("RGB")
         draw = ImageDraw.Draw(img)
-        font = ImageFont.truetype("adobe_arabic_shin_typo_bold.ttf", 76)
         
-        # نوشتن قیمت نمونه
-        text = get_display(arabic_reshaper.reshape("۲۵،۰۰۰،۰۰۰"))
-        draw.text((100, 620), text, font=font, fill=(0, 0, 0))
+        # ۲. استفاده از فونت پیش‌فرض سیستم (برای اطمینان از نمایش متن)
+        # در لینوکس Render، این فونت همیشه در دسترس است
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 60)
+        
+        # ۳. نوشتن متن تست برای مشاهده تغییرات
+        # متن را به فرمت فارسی اصلاح شده تبدیل می‌کنیم
+        test_text = get_display(arabic_reshaper.reshape("تست فونت و قیمت"))
+        draw.text((100, 620), test_text, font=font, fill=(255, 0, 0)) # رنگ قرمز برای تست
         
         img.save("ready.jpg", "JPEG", quality=85)
         
-        # ۳. ارسال به بله
+        # ۴. ارسال
         url = f"https://tapi.bale.ai/bot{BALE_TOKEN}/sendPhoto"
         with open("ready.jpg", "rb") as f:
             requests.post(url, data={"chat_id": BALE_CHAT_ID}, files={"photo": f}, timeout=20)
@@ -38,7 +38,7 @@ def generate_and_send():
 @app.route('/')
 def home():
     threading.Thread(target=generate_and_send).start()
-    return "درخواست ارسال عکس ثبت شد!"
+    return "درخواست ارسال عکس با متن تست ثبت شد!"
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
