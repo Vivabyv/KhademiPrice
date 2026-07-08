@@ -14,13 +14,16 @@ def get_tehran_time():
     now = datetime.datetime.now(iran_tz)
     return now.strftime("%Y/%m/%d"), now.strftime("%H:%M")
 
-@app.route('/', methods=['POST'])
+# اضافه کردن methods=['GET', 'POST'] برای حل مشکل Method Not Allowed
+@app.route('/', methods=['GET', 'POST'])
 def send_price_list():
-    # دریافت قیمت‌ها از شما (به صورت متنی)
+    if request.method == 'GET':
+        return "ربات آماده دریافت قیمت است!"
+    
+    # دریافت قیمت‌ها از شما
     data = request.json
     date, time = get_tehran_time()
     
-    # فرمت‌بندی نهایی
     message = f"""⚜️**گالری سکه خادمی**⚜️
 
 **نرخ معاملات:**
@@ -63,11 +66,10 @@ def send_price_list():
 📞 ۰۹۱۷۵۰۵۰۲۳۰ | ۰۷۱۹۱۰۹۱۱۰۰
 🆔 @khademicoin"""
 
-    # ارسال به بله
     requests.post(f"https://tapi.bale.ai/bot{BALE_TOKEN}/sendMessage", 
                   data={"chat_id": BALE_CHANNEL_ID, "text": message, "parse_mode": "Markdown"})
     
-    return "پیام ارسال شد"
+    return "پیام با موفقیت ارسال شد"
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
