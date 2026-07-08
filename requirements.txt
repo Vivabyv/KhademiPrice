@@ -3,4 +3,4 @@ pillow
 requests
 arabic-reshaper
 python-bidi
-playwright
+beautifulsoup4
