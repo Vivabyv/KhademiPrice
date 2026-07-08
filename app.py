@@ -4,12 +4,14 @@ import threading, time, requests, jdatetime
 
 app = Flask(__name__)
 
+# اطلاعات اصلی (دقیق چک شود)
 BALE_TOKEN = "1522137600:1EsFmhoM7bKsmnoawcgJn_DZVz0fRM8Dpkg"
-BALE_CHANNEL_ID = "1586282542"
+USER_ID = "1586282542" # آیدی شخصی که باید پیام را دریافت کند
 
-def get_prices():
+def get_data():
+    """دریافت قیمت‌ها از منبع پایدار"""
     try:
-        # منبع دیتای اقتصادی معتبر
+        # منبع دیتای اقتصادی
         r = requests.get("https://data.tgju.org/v1/market/indicator/summary", timeout=15)
         return r.json()
     except Exception as e:
@@ -18,52 +20,55 @@ def get_prices():
 
 def auto_post():
     while True:
-        try:
-            d = get_prices()
-            if d:
-                now = jdatetime.datetime.now()
-                # آماده‌سازی متن دقیق با چک کردن اینکه دیتا موجود باشد
-                msg = f"""⚜️**گالری سکه خادمی**⚜️
+        d = get_data()
+        if d:
+            now = jdatetime.datetime.now()
+            # فرمتِ دقیقِ شما
+            msg = f"""⚜️**گالری سکه خادمی**⚜️
 
 **نرخ معاملات:**
 تاریخ 🗓️ {now.strftime('%Y/%m/%d')}
 ساعت ⏰️ {now.strftime('%H:%M')}
 
 **آبشده نقدی:**
-🔵فروش: {d.get('gold_abshodeh', 'دریافت نشد')}
+🔵فروش: {d.get('gold_abshodeh', '---')}
+🟠خرید: {d.get('gold_abshodeh', '---')}
 
 **گرم طلای ۱۸:**
-🔵فروش: {d.get('gold_18k', 'دریافت نشد')}
+🔵فروش: {d.get('gold_18k', '---')}
+🟠خرید: {d.get('gold_18k', '---')}
 
 **تمام ۸۶ بانکی:**
-🔵فروش: {d.get('coin_emami', 'دریافت نشد')}
+🔵فروش: {d.get('coin_emami', '---')}
+🟠خرید: {d.get('coin_emami', '---')}
 
 **نیم ۸۶ بانکی:**
-🔵فروش: {d.get('coin_half', 'دریافت نشد')}
+🔵فروش: {d.get('coin_half', '---')}
+🟠خرید: {d.get('coin_half', '---')}
 
 **ربع ۸۶ بانکی:**
-🔵فروش: {d.get('coin_quarter', 'دریافت نشد')}
+🔵فروش: {d.get('coin_quarter', '---')}
+🟠خرید: {d.get('coin_quarter', '---')}
+
+**تمام غیر بانکی:**
+🔵فروش: {d.get('coin_old', '---')}
+🟠خرید: {d.get('coin_old', '---')}
 
 📍 شیراز، روبروی بازار زرگرها، ابتدای خیابان طالقانی، پاساژ شادی
 📞 ۰۹۱۷۵۰۵۰۲۳۰ | ۰۷۱۹۱۰۹۱۱۰۰
 🆔 @khademicoin"""
 
-                # ارسال به بله
-                url = f"https://tapi.bale.ai/bot{BALE_TOKEN}/sendMessage"
-                resp = requests.post(url, data={"chat_id": BALE_CHANNEL_ID, "text": msg, "parse_mode": "Markdown"})
-                print(f"Sent status: {resp.status_code}") # این را در Logs چک کنید
-            else:
-                print("No data received from API")
-        except Exception as e:
-            print(f"Loop Error: {e}")
-            
+            # ارسال به پی‌وی (حتماً در ربات دکمه استارت زده شود)
+            url = f"https://tapi.bale.ai/bot{BALE_TOKEN}/sendMessage"
+            resp = requests.post(url, data={"chat_id": USER_ID, "text": msg, "parse_mode": "Markdown"})
+            print(f"Bale Status: {resp.status_code}")
+        
         time.sleep(300) # هر ۵ دقیقه
 
 @app.route('/')
 def home():
-    return "ربات فعال است و در حال تلاش برای ارسال قیمت‌هاست."
+    return "ربات فعال است."
 
 if __name__ == "__main__":
-    # اجرای رشته جداگانه برای جلوگیری از بلاک شدن سرور
     threading.Thread(target=auto_post, daemon=True).start()
     app.run(host='0.0.0.0', port=10000)
