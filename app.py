@@ -11,16 +11,14 @@ from bidi.algorithm import get_display
 app = Flask(__name__)
 
 # ==========================================
-# ⚙️ تنظیمات ثابت و مختصاتِ تایید شده
+# ⚙️ تنظیمات ثابت
 # ==========================================
 BALE_BOT_TOKEN = "1522137600:1EsFmhoM7bKsmnoawcgJn_DZVz0fRM8Dpkg"
 BALE_CHANNEL_ID = "1586282542"
 FONT_PATH = "adobe_arabic_shin_typo_bold.ttf"
 INPUT_IMAGE = "سکه خادمی (34).png"
 
-# مختصات ثابت شما
-FONT_SIZE_PRICES = 76   
-FONT_SIZE_DATE = 69     
+# مختصات ثابت (تغییر ندادم)
 PRICE_END_X = 465       
 START_Y = 620           
 GAP_Y = 130             
@@ -39,25 +37,29 @@ def draw_right_aligned(draw, text, right_x, y, font, fill):
     text_width = bbox[2] - bbox[0]
     draw.text((right_x - text_width, y), text, font=font, fill=fill)
 
-def get_prices():
-    # قیمت‌های پیش‌فرض برای پایداری ۱۰۰٪
-    return {"gold_18k": 17785000, "coin_emami": 179320000, "coin_half": 93560000, "coin_quarter": 53750000, "coin_old": 174006000, "coin_half_old": 88208000, "coin_quarter_old": 44896000}
+def get_live_prices():
+    # لینک مستقیم دیتای سایت شما
+    url = "https://shiraaztala.ir/_next/data/gi1JcHYIp3c40BCz7VlES/userarea/prices.json"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"}
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        return response.json()['pageProps']['prices']
+    except:
+        return {"gold_18k": 17785000, "coin_emami": 179320000, "coin_half": 93560000, "coin_quarter": 53750000, "coin_old": 174006000, "coin_half_old": 88208000, "coin_quarter_old": 44896000}
 
 def generate_and_send():
-    prices = get_prices()
+    prices = get_live_prices()
     img = Image.open(INPUT_IMAGE)
     draw = ImageDraw.Draw(img)
-    font_large = ImageFont.truetype(FONT_PATH, FONT_SIZE_PRICES)
-    font_medium = ImageFont.truetype(FONT_PATH, FONT_SIZE_DATE)
+    font_large = ImageFont.truetype(FONT_PATH, 76)
+    font_medium = ImageFont.truetype(FONT_PATH, 69)
     
     # درج تاریخ و ساعت
     time_now = datetime.datetime.now().strftime("%H:%M")
-    date_str = "۱۴۰۵/۰۴/۱۷"
+    draw.text((DATE_X, DATE_Y), get_display(arabic_reshaper.reshape(to_persian_digits("۱۴۰۵/۰۴/۱۷"))), font=font_medium, fill=(255,255,255))
+    draw.text((TIME_X, TIME_Y), get_display(arabic_reshaper.reshape(to_persian_digits(time_now))), font=font_medium, fill=(255,255,255))
     
-    draw.text((DATE_X, DATE_Y), get_display(arabic_reshaper.reshape(to_persian_digits(date_str))), font=font_medium, fill=(255, 255, 255))
-    draw.text((TIME_X, TIME_Y), get_display(arabic_reshaper.reshape(to_persian_digits(time_now))), font=font_medium, fill=(255, 255, 255))
-    
-    # درج قیمت‌ها با مختصات تایید شده
+    # درج قیمت‌ها
     row_keys = ["gold_18k", "coin_emami", "coin_half", "coin_quarter", "coin_old", "coin_half_old", "coin_quarter_old"]
     for i, key in enumerate(row_keys):
         val = to_persian_digits("{:,}".format(int(prices[key])))
@@ -67,25 +69,14 @@ def generate_and_send():
     
     # ارسال به بله
     url = f"https://tapi.bale.ai/bot{BALE_BOT_TOKEN}/sendPhoto"
-    caption = "⚖️ نرخ لحظه‌ای طلا و سکه\n✨ گالری سکه خادمی\n🆔 @KhademiCoin"
-    try:
-        with open("ready.png", "rb") as photo:
-            requests.post(url, data={"chat_id": BALE_CHANNEL_ID, "caption": caption}, files={"photo": photo})
-    except Exception as e:
-        print(f"خطا در ارسال: {e}")
-
-def run_scheduler():
-    while True:
-        now = datetime.datetime.now().strftime("%H:%M")
-        if now in ["10:00", "11:30", "13:00", "14:30", "18:00", "19:30", "21:00"]:
-            generate_and_send()
-            time.sleep(61)
-        time.sleep(30)
+    with open("ready.png", "rb") as photo:
+        requests.post(url, data={"chat_id": BALE_CHANNEL_ID}, files={"photo": photo})
 
 @app.route('/')
 def home():
-    return "ربات گالری سکه خادمی فعال است!"
+    # هر بار که این صفحه را رفرش کنید، ربات عکس را می‌فرستد
+    generate_and_send()
+    return "قیمت زنده دریافت شد و برای شما ارسال گردید!"
 
 if __name__ == "__main__":
-    threading.Thread(target=run_scheduler, daemon=True).start()
     app.run(host='0.0.0.0', port=10000)
