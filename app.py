@@ -1,18 +1,22 @@
 # -*- coding: utf-8 -*-
 from flask import Flask
-import threading, time, requests, jdatetime, pytz, re
+import threading, time, requests, jdatetime, re
 
 app = Flask(__name__)
 
+# اطلاعات اصلی شما
 BALE_TOKEN = "1522137600:1EsFmhoM7bKsmnoawcgJn_DZVz0fRM8Dpkg"
 BALE_CHANNEL_ID = "1586282542"
+API_KEY = "f23de2487d6ebe28a48e552080403890"
 
 def get_prices():
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.get("https://shiraaztala.ir/userarea", headers=headers, timeout=15)
+        # استفاده از موتور رندر برای عبور از فیلتر سایت شیراز طلا
+        url = f"http://api.scraperapi.com?api_key={API_KEY}&url=https://shiraaztala.ir/userarea&render=true"
+        r = requests.get(url, timeout=40)
         text = r.text
         
+        # استخراج قیمت‌ها
         def find_p(name):
             match = re.search(f"{name}.*?(\d{{1,3}},\d{{3}},\d{{3}})", text, re.DOTALL)
             return match.group(1) if match else "---"
@@ -33,10 +37,10 @@ def get_prices():
 def auto_post():
     while True:
         p = get_prices()
-        if p:
-            # تاریخ شمسی با استفاده از jdatetime
+        if p and p['gold'] != "---":
             now = jdatetime.datetime.now()
             
+            # فرمتِ دقیقِ موردِ نظرِ شما
             msg = f"""⚜️**گالری سکه خادمی**⚜️
 
 **نرخ معاملات:**
@@ -82,11 +86,11 @@ def auto_post():
             requests.post(f"https://tapi.bale.ai/bot{BALE_TOKEN}/sendMessage", 
                           data={"chat_id": BALE_CHANNEL_ID, "text": msg, "parse_mode": "Markdown"})
         
-        time.sleep(60) # هر ۶۰ ثانیه (۱ دقیقه) ارسال خودکار
+        time.sleep(300) # فاصله ۵ دقیقه‌ای برای امنیتِ بیشتر سایت و جلوگیری از بلاک
 
 @app.route('/')
 def home():
-    return "ربات اتوماسیون با تاریخ شمسی فعال است."
+    return "ربات اتوماسیون گالری خادمی فعال است."
 
 if __name__ == "__main__":
     threading.Thread(target=auto_post, daemon=True).start()
