@@ -1,39 +1,26 @@
 # -*- coding: utf-8 -*-
 from flask import Flask
-from playwright.sync_api import sync_playwright
-import threading, requests, datetime
-from PIL import Image, ImageDraw, ImageFont
-import arabic_reshaper
-from bidi.algorithm import get_display
+import requests
 
 app = Flask(__name__)
 
-# مختصات ثابت شما
-FONT_PATH = "adobe_arabic_shin_typo_bold.ttf"
-INPUT_IMAGE = "سکه خادمی (34).png"
-
-def get_live_prices_with_chrome():
-    with sync_playwright() as p:
-        browser = p.chromium.launch() # اجرای کروم در پس‌زمینه
-        page = browser.new_page()
-        page.goto("https://shiraaztala.ir/userarea")
-        # اینجا باید منطق ورود به پنل یا خواندنِ قیمت‌ها باشد
-        # فعلاً به صورت عمومی فرض کردیم قیمت‌ها در این آدرس هستند:
-        page.goto("https://shiraaztala.ir/userarea/prices") 
-        content = page.content()
-        # در اینجا با دستوراتی مثل page.query_selector قیمت‌ها را استخراج می‌کنیم
-        browser.close()
-    return {"gold_18k": 17800000} # نمونه دیتای استخراج شده
-
-def generate_and_send():
-    # همان منطق قبلی برای ساخت عکس
-    # ...
-    pass
-
 @app.route('/')
 def home():
-    threading.Thread(target=generate_and_send).start()
-    return "درخواست دریافت قیمت زنده با کروم ثبت شد!"
+    url = "https://shiraaztala.ir/_next/data/gi1JcHYIp3c40BCz7VlES/userarea/prices.json"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        "Referer": "https://shiraaztala.ir/userarea"
+    }
+    cookies = {"token": "4812|0owRaYcCPXWGXMeZpNTFTZheipOcNM04HuzcEkKL3f9b9622"}
+    
+    try:
+        response = requests.get(url, headers=headers, cookies=cookies, timeout=15)
+        if response.status_code == 200:
+            return f"سایت پاسخ داد: {response.json()['pageProps']['prices']}"
+        else:
+            return f"خطای سایت: کد {response.status_code} - متن: {response.text}"
+    except Exception as e:
+        return f"خطای اتصال: {str(e)}"
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
