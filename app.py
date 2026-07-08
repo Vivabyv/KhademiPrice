@@ -11,24 +11,19 @@ BALE_TOKEN = "1522137600:1EsFmhoM7bKsmnoawcgJn_DZVz0fRM8Dpkg"
 BALE_CHAT_ID = "1586282542"
 FONT_PATH = "adobe_arabic_shin_typo_bold.ttf"
 INPUT_IMAGE = "سکه خادمی (34).png"
+API_KEY = "f23de2487d6ebe28a48e552080403890"
 
 def get_live_prices():
-    # ترفند: استفاده از هدرهای کاملِ مرورگرِ کروم
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Connection": "keep-alive"
-    }
     try:
-        # اتصال با هدرهای شبیه‌ساز مرورگر
-        response = requests.get("https://shiraaztala.ir/userarea", headers=headers, timeout=20)
+        # استفاده از ScraperAPI برای لود کردنِ کاملِ صفحه و اجرای جاوااسکریپت
+        target_url = "https://shiraaztala.ir/userarea"
+        url = f"http://api.scraperapi.com?api_key={API_KEY}&url={target_url}&render=true"
+        response = requests.get(url, timeout=60)
         text = response.text
         
-        # استخراج قیمت‌ها بر اساس متن شما (اعدادِ ۸ یا ۹ رقمی با کاما)
+        # استخراج قیمت‌ها
         def find_price(name):
-            # جستجو در ۵۰۰ کاراکتر بعد از نام سکه
-            pattern = f"{name}.*?(\d{{1,3}},\d{{3}},\d{{3}})"
-            match = re.search(pattern, text, re.DOTALL)
+            match = re.search(f"{name}.*?(\d{{1,3}},\d{{3}},\d{{3}})", text, re.DOTALL)
             return match.group(1) if match else "---"
 
         return {
@@ -41,7 +36,7 @@ def get_live_prices():
             "coin_quarter_old": find_price("ربع بانکی قدیم")
         }
     except Exception as e:
-        print(f"DEBUG ERROR: {e}")
+        print(f"Error: {e}")
         return {k: "---" for k in ["gold_18k", "coin_emami", "coin_half", "coin_quarter", "coin_old", "coin_half_old", "coin_quarter_old"]}
 
 def generate_and_send():
@@ -51,14 +46,15 @@ def generate_and_send():
     font_l = ImageFont.truetype(FONT_PATH, 76)
     font_m = ImageFont.truetype(FONT_PATH, 69)
     
-    # ساعت دقیق ایران
+    # تنظیم ساعت دقیق ایران
     iran_tz = pytz.timezone("Asia/Tehran")
     now = datetime.datetime.now(iran_tz)
     
-    # تاریخ و ساعت
+    # چاپ تاریخ و ساعت
     draw.text((605, 475), get_display(arabic_reshaper.reshape("۱۴۰۵/۰۴/۱۷")), font=font_m, fill=(255,255,255))
     draw.text((335, 470), get_display(arabic_reshaper.reshape(now.strftime("%H:%M").replace('0','۰').replace('1','۱').replace('2','۲').replace('3','۳').replace('4','۴').replace('5','۵').replace('6','۶').replace('7','۷').replace('8','۸').replace('9','۹'))), font=font_m, fill=(255,255,255))
     
+    # چاپ لیست قیمت‌ها
     keys = ["gold_18k", "coin_emami", "coin_half", "coin_quarter", "coin_old", "coin_half_old", "coin_quarter_old"]
     for i, k in enumerate(keys):
         val = prices[k].replace('0','۰').replace('1','۱').replace('2','۲').replace('3','۳').replace('4','۴').replace('5','۵').replace('6','۶').replace('7','۷').replace('8','۸').replace('9','۹')
@@ -71,7 +67,7 @@ def generate_and_send():
 @app.route('/')
 def home():
     threading.Thread(target=generate_and_send).start()
-    return "ربات فعال شد! چک کنید آیا قیمت‌ها آمدند؟"
+    return "ربات با موتور ScraperAPI فعال شد!"
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
