@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Flask
-import threading, requests, re, datetime
-import pytz
+import threading, requests, re, datetime, pytz
 from PIL import Image, ImageDraw, ImageFont
 import arabic_reshaper
 from bidi.algorithm import get_display
@@ -20,21 +19,24 @@ def to_persian_digits(text):
 def get_live_prices():
     try:
         response = requests.get("https://shiraaztala.ir/userarea", timeout=15)
-        # استخراج تمام قیمت‌ها
-        nums = re.findall(r'(\d{1,3},\d{3},\d{3})', response.text)
+        text = response.text
         
-        # بر اساس لیستِ متنی که فرستادید:
-        # nums[0]=تمام 86، [2]=نیم 86، [4]=ربع 86
-        # nums[6]=تمام عادی، [8]=نیم عادی، [10]=ربع عادی
-        # nums[12]=تمام قدیم، [14]=نیم قدیم، [16]=ربع قدیم
+        # این الگو قیمت را دقیقاً بعد از نام سکه پیدا می‌کند
+        def find_price(name):
+            match = re.search(f"{name}.*?(\d{{1,3}},\d{{3}},\d{{3}})", text, re.DOTALL)
+            return match.group(1) if match else "---"
+
         return {
             "gold_18k": "17,877,086", 
-            "coin_emami": nums[0], "coin_half": nums[2], "coin_quarter": nums[4],
-            "coin_normal": nums[6], "coin_half_normal": nums[8], "coin_quarter_normal": nums[10],
-            "coin_old": nums[12]
+            "coin_emami": find_price("تمام 86"),
+            "coin_half": find_price("نیم 86"),
+            "coin_quarter": find_price("ربع 86"),
+            "coin_old": find_price("تمام بانکی قدیم"),
+            "coin_half_old": find_price("نیم بانکی قدیم"),
+            "coin_quarter_old": find_price("ربع بانکی قدیم")
         }
     except:
-        return {k: "---" for k in ["gold_18k", "coin_emami", "coin_half", "coin_quarter", "coin_normal", "coin_half_normal", "coin_quarter_normal", "coin_old"]}
+        return {k: "---" for k in ["gold_18k", "coin_emami", "coin_half", "coin_quarter", "coin_old", "coin_half_old", "coin_quarter_old"]}
 
 def generate_and_send():
     prices = get_live_prices()
@@ -43,15 +45,16 @@ def generate_and_send():
     font_l = ImageFont.truetype(FONT_PATH, 76)
     font_m = ImageFont.truetype(FONT_PATH, 69)
     
-    # تنظیم ساعت دقیق ایران
+    # ساعت و تاریخ ایران
     iran_tz = pytz.timezone("Asia/Tehran")
     now = datetime.datetime.now(iran_tz)
     
+    # چاپ تاریخ و ساعت روی عکس
     draw.text((605, 475), get_display(arabic_reshaper.reshape("۱۴۰۵/۰۴/۱۷")), font=font_m, fill=(255,255,255))
     draw.text((335, 470), get_display(arabic_reshaper.reshape(to_persian_digits(now.strftime("%H:%M")))), font=font_m, fill=(255,255,255))
     
-    # لیست کلیدها (به ترتیبِ مختصاتِ شما)
-    keys = ["gold_18k", "coin_emami", "coin_half", "coin_quarter", "coin_old", "coin_half_normal", "coin_quarter_normal"]
+    # لیست قیمت‌ها
+    keys = ["gold_18k", "coin_emami", "coin_half", "coin_quarter", "coin_old", "coin_half_old", "coin_quarter_old"]
     for i, k in enumerate(keys):
         val = to_persian_digits(prices[k])
         bbox = font_l.getbbox(val)
@@ -63,7 +66,7 @@ def generate_and_send():
 @app.route('/')
 def home():
     threading.Thread(target=generate_and_send).start()
-    return "ساعت ایران تنظیم شد و قیمت‌ها در حال ارسال است!"
+    return "ربات با متد جستجوی نام سکه فعال شد!"
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
