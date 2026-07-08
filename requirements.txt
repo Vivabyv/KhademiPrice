@@ -1,5 +1,3 @@
 flask
-pillow
 requests
-arabic-reshaper
-python-bidi
+pytz
