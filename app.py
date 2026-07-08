@@ -1,63 +1,53 @@
 # -*- coding: utf-8 -*-
-from flask import Flask, request
-import requests, datetime, pytz
+from flask import Flask
+import threading, time, requests, datetime, pytz
 
 app = Flask(__name__)
 
 BALE_TOKEN = "1522137600:1EsFmhoM7bKsmnoawcgJn_DZVz0fRM8Dpkg"
 BALE_CHANNEL_ID = "1586282542"
 
-@app.route('/send')
-def send():
-    # دریافت قیمت‌ها از آدرس (پارامترها)
-    iran_tz = pytz.timezone("Asia/Tehran")
-    now = datetime.datetime.now(iran_tz)
-    
-    msg = f"""⚜️**گالری سکه خادمی**⚜️
+def get_prices_from_source():
+    # لینک مستقیم دیتایِ قیمتِ سایت
+    url = "https://shiraaztala.ir/_next/data/gi1JcHYIp3c40BCz7VlES/userarea/prices.json"
+    try:
+        response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        return response.json()['pageProps']['prices']
+    except:
+        return None
 
-**نرخ معاملات:**
-تاریخ 🗓️ {now.strftime("%Y/%m/%d")}
-ساعت ⏰️ {now.strftime("%H:%M")}
+def auto_post():
+    while True:
+        prices = get_prices_from_source()
+        if prices:
+            iran_tz = pytz.timezone("Asia/Tehran")
+            now = datetime.datetime.now(iran_tz)
+            
+            # فرمت دقیق شما
+            msg = f"""⚜️**گالری سکه خادمی**⚜️
+تاریخ 🗓️ {now.strftime("%Y/%m/%d")} | ساعت ⏰️ {now.strftime("%H:%M")}
 
-**آبشده نقدی (فردا):**
-🔵فروش: {request.args.get('abshode_sell', '-')}
-🟠خرید: {request.args.get('abshode_buy', '-')}
+**آبشده نقدی:**
+🔵فروش: {prices.get('abshode_sell', '-')} | 🟠خرید: {prices.get('abshode_buy', '-')}
 
 **گرم طلای ۱۸:**
-🔵فروش: {request.args.get('gold_sell', '-')}
-🟠خرید: {request.args.get('gold_buy', '-')}
+🔵فروش: {prices.get('gold_18k', '-')}
 
-**تمام ۸۶ بانکی:**
-🔵فروش: {request.args.get('emami_sell', '-')}
-🟠خرید: {request.args.get('emami_buy', '-')}
+**تمام ۸۶:**
+🔵فروش: {prices.get('coin_emami', '-')}
 
-**نیم ۸۶ بانکی:**
-🔵فروش: {request.args.get('half_sell', '-')}
-🟠خرید: {request.args.get('half_buy', '-')}
-
-**ربع ۸۶ بانکی:**
-🔵فروش: {request.args.get('quarter_sell', '-')}
-🟠خرید: {request.args.get('quarter_buy', '-')}
-
-**تمام غیر بانکی:**
-🔵فروش: {request.args.get('normal_sell', '-')}
-🟠خرید: {request.args.get('normal_buy', '-')}
-
-**نیم غیر بانکی:**
-🔵فروش: {request.args.get('half_normal_sell', '-')}
-🟠خرید: {request.args.get('half_normal_buy', '-')}
-
-**ربع غیر بانکی:**
-🔵فروش: {request.args.get('quarter_normal_sell', '-')}
-🟠خرید: {request.args.get('quarter_normal_buy', '-')}
-
-📍 شیراز، روبروی بازار زرگرها، ابتدای خیابان طالقانی، پاساژ شادی
-📞 ۰۹۱۷۵۰۵۰۲۳۰ | ۰۷۱۹۱۰۹۱۱۰۰
+📍 شیراز، پاساژ شادی 📞 ۰۹۱۷۵۰۵۰۲۳۰
 🆔 @khademicoin"""
+            requests.post(f"https://tapi.bale.ai/bot{BALE_TOKEN}/sendMessage", 
+                          data={"chat_id": BALE_CHANNEL_ID, "text": msg, "parse_mode": "Markdown"})
+        
+        time.sleep(600) # هر ۱۰ دقیقه یکبار خودش خودکار پست می‌کند
 
-    requests.post(f"https://tapi.bale.ai/bot{BALE_TOKEN}/sendMessage", 
-                  data={"chat_id": BALE_CHANNEL_ID, "text": msg, "parse_mode": "Markdown"})
-    return "ارسال شد"
+@app.route('/')
+def home():
+    return "ربات اتوماسیون در حال کار است..."
 
 if __name__ == "__main__":
+    # شروع اتوماسیون در پس‌زمینه
+    threading.Thread(target=auto_post, daemon=True).start()
     app.run(host='0.0.0.0', port=10000)
