@@ -1,48 +1,73 @@
 # -*- coding: utf-8 -*-
-from flask import Flask
-import threading, requests, datetime, pytz
-from PIL import Image, ImageDraw, ImageFont
-import arabic_reshaper
-from bidi.algorithm import get_display
+from flask import Flask, request
+import requests
+import datetime
+import pytz
 
 app = Flask(__name__)
 
 BALE_TOKEN = "1522137600:1EsFmhoM7bKsmnoawcgJn_DZVz0fRM8Dpkg"
-BALE_CHAT_ID = "1586282542"
-FONT_PATH = "adobe_arabic_shin_typo_bold.ttf"
-INPUT_IMAGE = "سکه خادمی (34).png"
+BALE_CHANNEL_ID = "1586282542"
 
-def get_live_prices():
-    # لینک مستقیم دیتای سایت (این دقیق‌ترین روش است)
-    url = "https://shiraaztala.ir/_next/data/gi1JcHYIp3c40BCz7VlES/userarea/prices.json"
-    try:
-        # استفاده از API_KEY برای دسترسی به دیتا
-        headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(url, headers=headers, timeout=10)
-        data = response.json()['pageProps']['prices']
-        return data # این دیکشنری حاوی تمام قیمت‌هاست
-    except:
-        return None
+def get_tehran_time():
+    iran_tz = pytz.timezone("Asia/Tehran")
+    now = datetime.datetime.now(iran_tz)
+    return now.strftime("%Y/%m/%d"), now.strftime("%H:%M")
 
-def generate_and_send():
-    prices = get_live_prices()
-    if not prices: return # اگر دیتا نیامد، ارسال نکن
-
-    img = Image.open(INPUT_IMAGE).convert("RGB")
-    draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype(FONT_PATH, 76)
+@app.route('/', methods=['POST'])
+def send_price_list():
+    # دریافت قیمت‌ها از شما (به صورت متنی)
+    data = request.json
+    date, time = get_tehran_time()
     
-    # چاپ قیمت‌ها (از دیکشنری prices استفاده کن)
-    keys = ["gold_18k", "coin_emami", "coin_half", "coin_quarter"]
-    for i, k in enumerate(keys):
-        val = "{:,}".format(int(prices.get(k, 0)))
-        draw.text((400, 620 + (i * 130)), get_display(arabic_reshaper.reshape(val)), font=font, fill=(0,0,0))
-    
-    img.save("ready.jpg", "JPEG", quality=90)
-    requests.post(f"https://tapi.bale.ai/bot{BALE_TOKEN}/sendPhoto", 
-                  data={"chat_id": BALE_CHAT_ID}, files={"photo": open("ready.jpg", "rb")})
+    # فرمت‌بندی نهایی
+    message = f"""⚜️**گالری سکه خادمی**⚜️
 
-@app.route('/')
-def home():
-    threading.Thread(target=generate_and_send).start()
-    return "اتصال مستقیم برقرار شد."
+**نرخ معاملات:**
+تاریخ 🗓️ {date}
+ساعت ⏰️ {time}
+
+**آبشده نقدی (فردا):**
+🔵فروش: {data.get('abshode_sell')}
+🟠خرید: {data.get('abshode_buy')}
+
+**گرم طلای ۱۸:**
+🔵فروش: {data.get('gold_sell')}
+🟠خرید: {data.get('gold_buy')}
+
+**تمام ۸۶ بانکی:**
+🔵فروش: {data.get('emami_sell')}
+🟠خرید: {data.get('emami_buy')}
+
+**نیم ۸۶ بانکی:**
+🔵فروش: {data.get('half_sell')}
+🟠خرید: {data.get('half_buy')}
+
+**ربع ۸۶ بانکی:**
+🔵فروش: {data.get('quarter_sell')}
+🟠خرید: {data.get('quarter_buy')}
+
+**تمام غیر بانکی:**
+🔵فروش: {data.get('normal_sell')}
+🟠خرید: {data.get('normal_buy')}
+
+**نیم غیر بانکی:**
+🔵فروش: {data.get('half_normal_sell')}
+🟠خرید: {data.get('half_normal_buy')}
+
+**ربع غیر بانکی:**
+🔵فروش: {data.get('quarter_normal_sell')}
+🟠خرید: {data.get('quarter_normal_buy')}
+
+📍 شیراز، روبروی بازار زرگرها، ابتدای خیابان طالقانی، پاساژ شادی
+📞 ۰۹۱۷۵۰۵۰۲۳۰ | ۰۷۱۹۱۰۹۱۱۰۰
+🆔 @khademicoin"""
+
+    # ارسال به بله
+    requests.post(f"https://tapi.bale.ai/bot{BALE_TOKEN}/sendMessage", 
+                  data={"chat_id": BALE_CHANNEL_ID, "text": message, "parse_mode": "Markdown"})
+    
+    return "پیام ارسال شد"
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=10000)
