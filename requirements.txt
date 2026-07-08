@@ -3,5 +3,3 @@ pillow
 requests
 arabic-reshaper
 python-bidi
-beautifulsoup4
-pytz
