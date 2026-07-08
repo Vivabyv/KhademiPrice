@@ -1,30 +1,23 @@
 # -*- coding: utf-8 -*-
 from flask import Flask
-import threading, time, requests, jdatetime
+import requests, jdatetime
 
 app = Flask(__name__)
 
-# اطلاعات اصلی (دقیق چک شود)
+# اطلاعات ربات و آیدی شخصی
 BALE_TOKEN = "1522137600:1EsFmhoM7bKsmnoawcgJn_DZVz0fRM8Dpkg"
-USER_ID = "1586282542" # آیدی شخصی که باید پیام را دریافت کند
+USER_ID = "1586282542"
 
-def get_data():
-    """دریافت قیمت‌ها از منبع پایدار"""
+@app.route('/')
+def send_report():
     try:
-        # منبع دیتای اقتصادی
+        # ۱. دریافت قیمت‌ها از منبع معتبر
         r = requests.get("https://data.tgju.org/v1/market/indicator/summary", timeout=15)
-        return r.json()
-    except Exception as e:
-        print(f"Error fetching data: {e}")
-        return None
-
-def auto_post():
-    while True:
-        d = get_data()
-        if d:
-            now = jdatetime.datetime.now()
-            # فرمتِ دقیقِ شما
-            msg = f"""⚜️**گالری سکه خادمی**⚜️
+        d = r.json()
+        now = jdatetime.datetime.now()
+        
+        # ۲. متن دقیق با فرمتِ درخواستی شما
+        msg = f"""⚜️**گالری سکه خادمی**⚜️
 
 **نرخ معاملات:**
 تاریخ 🗓️ {now.strftime('%Y/%m/%d')}
@@ -50,25 +43,17 @@ def auto_post():
 🔵فروش: {d.get('coin_quarter', '---')}
 🟠خرید: {d.get('coin_quarter', '---')}
 
-**تمام غیر بانکی:**
-🔵فروش: {d.get('coin_old', '---')}
-🟠خرید: {d.get('coin_old', '---')}
-
 📍 شیراز، روبروی بازار زرگرها، ابتدای خیابان طالقانی، پاساژ شادی
 📞 ۰۹۱۷۵۰۵۰۲۳۰ | ۰۷۱۹۱۰۹۱۱۰۰
 🆔 @khademicoin"""
 
-            # ارسال به پی‌وی (حتماً در ربات دکمه استارت زده شود)
-            url = f"https://tapi.bale.ai/bot{BALE_TOKEN}/sendMessage"
-            resp = requests.post(url, data={"chat_id": USER_ID, "text": msg, "parse_mode": "Markdown"})
-            print(f"Bale Status: {resp.status_code}")
+        # ۳. ارسال پیام
+        resp = requests.post(f"https://tapi.bale.ai/bot{BALE_TOKEN}/sendMessage", 
+                             data={"chat_id": USER_ID, "text": msg, "parse_mode": "Markdown"})
         
-        time.sleep(300) # هر ۵ دقیقه
-
-@app.route('/')
-def home():
-    return "ربات فعال است."
+        return "پیام با موفقیت ارسال شد."
+    except Exception as e:
+        return f"خطا: {str(e)}"
 
 if __name__ == "__main__":
-    threading.Thread(target=auto_post, daemon=True).start()
     app.run(host='0.0.0.0', port=10000)
